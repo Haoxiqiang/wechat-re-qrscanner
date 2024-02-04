@@ -24,7 +24,6 @@ class MainActivity2 : AppCompatActivity(), SurfaceHolder.Callback, Camera.Previe
     private lateinit var surfaceView: SurfaceView
 
     private var isProcessing: Boolean = false
-    private var isScanFinish: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +60,6 @@ class MainActivity2 : AppCompatActivity(), SurfaceHolder.Callback, Camera.Previe
     }
 
     fun onClickReset(view: View) {
-        isScanFinish = false
         textView.text = ""
     }
 
@@ -75,7 +73,7 @@ class MainActivity2 : AppCompatActivity(), SurfaceHolder.Callback, Camera.Previe
     }
 
     override fun onPreviewFrame(data: ByteArray, camera: Camera) {
-        if (isScanFinish || isProcessing)
+        if (isProcessing)
             return
 
         isProcessing = true
@@ -88,7 +86,6 @@ class MainActivity2 : AppCompatActivity(), SurfaceHolder.Callback, Camera.Previe
             rotation = 90
         )
         if (scanResultList.isNotEmpty()) {
-            isScanFinish = true
             scanResultList.forEach { qBarResultJNI: QbarNative.QBarResultJNI ->
                 Log.d(
                     "QBarRE",
@@ -100,10 +97,14 @@ class MainActivity2 : AppCompatActivity(), SurfaceHolder.Callback, Camera.Previe
                     }"
                 )
             }
-            textView.post {
-                textView.text =
-                    scanResultList.first().let { String(it.data, Charset.forName(it.charset)) }
+            val newResult =
+                scanResultList.first().let { String(it.data, Charset.forName(it.charset)) }
+            if (newResult.isNotEmpty()) {
+                textView.post {
+                    textView.text = newResult
+                }
             }
+
             Log.d(
                 "QBarRE",
                 "onPreviewFrame scan cost: ${System.currentTimeMillis() - startTimestamp}ms",
@@ -119,9 +120,17 @@ class MainActivity2 : AppCompatActivity(), SurfaceHolder.Callback, Camera.Previe
         )
     }
 
+    override fun onResume() {
+        super.onResume()
+    }
+
+    override fun onPause() {
+        super.onPause()
+    }
+
     override fun onDestroy() {
-        super.onDestroy()
         camera.release()
+        super.onDestroy()
         wechatScanner.release()
     }
 
