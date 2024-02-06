@@ -19,56 +19,8 @@ class WechatScanner {
 
 
     /**
-     * 释放扫码必备的资源文件
-     *
-     * 主要释放Assert下对qbar文件到 /data/data/package/files/qbar 下
-     *
-     * @param context 上下文
-     * @param folder  输出到文件夹名称 默认：qbar
-     *
-     * @throws IOException 可能文件权限有问题
-     */
-    @Throws(IOException::class)
-    fun releaseAssert(context: Context, folder: String = "qbar") {
-        val outputFolder = File(context.filesDir, folder)
-        if (!outputFolder.exists()) {
-            outputFolder.mkdirs()
-        }
-        val files = arrayOf(
-            "detect_model.bin",
-            "detect_model.param",
-            "srnet.bin",
-            "srnet.param",
-            "net_fc.bin",
-            "net_fc.param",
-            "net_fc.param",
-            "QBarModels/V1.1.0.26/qbar_seg.xnet",
-            "QBarModels/V1.1.0.26/qbar_sr.xnet",
-            "QBarModels/V1.5.0.26/qbar_detect.xnet",
-        )
-        files.forEach { file ->
-            context.assets.open("qbar/$file")
-                .use { input ->
-                    val target = File(outputFolder, file)
-                    val parentDir = File(target.parent)
-                    if (!parentDir.exists()) {
-                        parentDir.mkdirs()
-                    }
-                    target.delete()
-                    input.copyTo(target.outputStream())
-                }
-        }
-    }
-
-
-    /**
      * 初始化扫一扫模块
      *
-     * 在初始化一定要释放扫码资：releaseAssert
-     *
-     * @param folder 释放文件的文件夹
-     *
-     * @see releaseAssert
      * @see release
      *
      * @throws IOException 找不到初始化的各项资源
@@ -113,10 +65,11 @@ class WechatScanner {
         qbarAiModelParam.superResolutionModelVersion = "V1.1.0.26"
         qbarAiModelParam.enable_seg = true
         qbarAiModelParam.qbar_segmentation_model_path_ = qbarSegmentationPath.absolutePath
-        qbarAiModelParam.detect_model_bin_path_ = ""
-        qbarAiModelParam.detect_model_param_path_ = qbarDetectModelPath.absolutePath
+        qbarAiModelParam.detect_model_bin_path_ = qbarDetectModelPath.absolutePath
+        qbarAiModelParam.detect_model_param_path_ = ""
         qbarAiModelParam.superresolution_model_bin_path_ = qbarSrPath.absolutePath
-        qbarAiModelParam.superresolution_model_param_path_ = ""
+        qbarAiModelParam.superresolution_model_param_path_ =
+            superResolutionModelParamPath.absolutePath
 
         id = QbarNative.Init(
             1, true, true, true, true,
@@ -129,12 +82,16 @@ class WechatScanner {
      * 设置解码器
      *
      * @param intArray 解码支持参数
-     *                 具体数值暂时不清楚
-     *                 请固定填写: 2, 1
+     *  ALL_READERS = 0
+     *  ONED_BARCODE = 1
+     *  QRCODE = 2
+     *  WXCODE = 3
+     *  PDF417 = 4
+     *  DATA_MATRIX = 5
      *
      * @return 0 => 成功
      */
-    fun setReader(intArray: IntArray = intArrayOf(2, 1, 4, 5)): Int =
+    fun setReader(intArray: IntArray = intArrayOf(3, 2)): Int =
         QbarNative.SetReaders(
             intArray,
             intArray.size,
@@ -162,7 +119,7 @@ class WechatScanner {
         data: ByteArray,
         size: Point,
         crop: Rect,
-        rotation: Int
+        rotation: Int,
     ): List<QbarNative.QBarResultJNI> {
         val qBarId: Int = id ?: throw RuntimeException("did init ?")
 
@@ -181,7 +138,9 @@ class WechatScanner {
             rotation,
             0
         )
-        if (nativeGrayRotateCropSubResult != 0) throw RuntimeException("Native.nativeGrayRotateCropSub error: $nativeGrayRotateCropSubResult")
+        if (nativeGrayRotateCropSubResult != 0) {
+            throw RuntimeException("Native.nativeGrayRotateCropSub error: $nativeGrayRotateCropSubResult")
+        }
 
         val scanImageResult: Int = QbarNative.ScanImage(
             nativeGrayRotateCropSubData.copyOf(),
@@ -189,7 +148,9 @@ class WechatScanner {
             nativeGrayRotateCropSubDataWH[1],
             qBarId
         )
-        if (scanImageResult != 0) throw RuntimeException("Native.ScanImage error: $scanImageResult")
+        if (scanImageResult != 0) {
+            throw RuntimeException("Native.ScanImage error: $scanImageResult")
+        }
 
         val qBarResultJNIArr: Array<QbarNative.QBarResultJNI> = arrayOf(
             QbarNative.QBarResultJNI(),
@@ -206,7 +167,9 @@ class WechatScanner {
 
         val getDetailResults: Int =
             QbarNative.GetDetailResults(qBarResultJNIArr, qBarPointArr, qBarReportMsgArr, qBarId)
-        if (getDetailResults < 0) throw RuntimeException("Native.GetDetailResults error: $getDetailResults")
+        if (getDetailResults < 0) {
+            throw RuntimeException("Native.GetDetailResults error: $getDetailResults")
+        }
 
         return qBarResultJNIArr.filter { qBarResultJNI: QbarNative.QBarResultJNI? -> qBarResultJNI?.typeName?.isNotEmpty() == true }
     }

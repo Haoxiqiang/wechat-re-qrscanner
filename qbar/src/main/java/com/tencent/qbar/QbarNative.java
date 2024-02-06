@@ -102,7 +102,7 @@ public class QbarNative {
      * @param cropHeight               裁剪高度
      * @param outputData               输出数据
      * @param outputDataWH             输出数据宽，高
-     *                                 weight = 0
+     *                                 width = 0
      *                                 height = 1
      * @param rotation                 旋转角度
      * @param unknown                  始终为0 不明含义

@@ -1,105 +1,68 @@
 package com.wechat.mm.qbar
 
-import android.net.Uri
+import android.annotation.SuppressLint
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme.colorScheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
-import coil.annotation.ExperimentalCoilApi
-import coil.compose.rememberAsyncImagePainter
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.wechat.mm.qbar.camera.CameraCapture
-import com.wechat.mm.qbar.gallery.GallerySelect
-import com.wechat.mm.qbar.ui.theme.WeChatQBarRETheme
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.view.PreviewView
 
-val EMPTY_IMAGE_URI: Uri = Uri.parse("file://dev/null")
+@Suppress("DEPRECATION")
+@SuppressLint("UnsafeOptInUsageError")
+class MainActivity : AppCompatActivity() {
 
-@ExperimentalCoilApi
-@ExperimentalCoroutinesApi
-@ExperimentalPermissionsApi
-class MainActivity : ComponentActivity() {
+    private lateinit var textView: TextView
+    private lateinit var cameraPreview: PreviewView
+    var scanCount = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            WeChatQBarRETheme {
-                // A surface container using the 'background' color from the theme
-                Surface(color = colorScheme.background) {
-                    MainContent(Modifier.fillMaxSize())
+        setContentView(R.layout.activity_main)
+        textView = findViewById(R.id.textView)
+        cameraPreview = findViewById(R.id.cameraPreview)
+
+        scanCount = 0
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu?): Boolean {
+        menu?.clear()
+        menu?.add(0, 0, 0, "Release Assets")
+        return super.onPrepareOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.groupId == 0 && item.itemId == 0) {
+            Params.releaseAssets(this)
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
+    fun onClickInit(view: View) {
+        textView.text = Params.wechatScanner.version()
+    }
+
+    fun onClickOpen(view: View) {
+        Params.startScan(
+            this,
+            cameraPreview
+        ) { code: Int, contents: List<String> ->
+            val newData = contents.joinToString()
+            Log.d("WXScanner", "scanCount:${scanCount}code:$code  $newData")
+            scanCount += 1
+            if (newData.isNotEmpty()) {
+                textView.post {
+                    textView.text = newData
                 }
             }
         }
     }
-}
 
-@ExperimentalCoilApi
-@ExperimentalCoroutinesApi
-@ExperimentalPermissionsApi
-@Composable
-fun MainContent(modifier: Modifier = Modifier) {
-    var imageUri by remember { mutableStateOf(EMPTY_IMAGE_URI) }
-    if (imageUri != EMPTY_IMAGE_URI) {
-        Box(modifier = modifier) {
-            Image(
-                modifier = Modifier.fillMaxSize(),
-                painter = rememberAsyncImagePainter(imageUri),
-                contentDescription = "Captured image"
-            )
-            Button(
-                modifier = Modifier.align(Alignment.BottomCenter),
-                onClick = {
-                    imageUri = EMPTY_IMAGE_URI
-                }
-            ) {
-                Text("Remove image")
-            }
-        }
-    } else {
-        var showGallerySelect by remember { mutableStateOf(false) }
-        if (showGallerySelect) {
-            GallerySelect(
-                modifier = modifier,
-                onImageUri = { uri ->
-                    showGallerySelect = false
-                    imageUri = uri
-                }
-            )
-        } else {
-            Box(modifier = modifier) {
-                CameraCapture(
-                    modifier = modifier,
-                    onImageFile = { file ->
-                        imageUri = file.toUri()
-                    }
-                )
-                Button(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(4.dp),
-                    onClick = {
-                        showGallerySelect = true
-                    }
-                ) {
-                    Text("Select from Gallery")
-                }
-            }
-        }
+    override fun onDestroy() {
+        Params.wechatScanner.release()
+        super.onDestroy()
     }
 }
-
