@@ -86,8 +86,6 @@ public class QbarNative {
 
     public static native int nativeArrayConvert(int i, int i2, byte[] bArr, int[] iArr);
 
-    public static native int nativeCropGray2(byte[] bArr, byte[] bArr2, int i, int i2, int i3);
-
     /**
      * 对 onPreviewFrame 输出对数据进行 灰度、旋转、裁剪 一条龙服务
      * 经过测试通过的图片格式 android.graphics.ImageFormat.NV21
@@ -107,7 +105,19 @@ public class QbarNative {
      * @param unknown                  始终为0 不明含义
      * @return 非0失败
      */
-    public static native int nativeGrayRotateCropSub(byte[] onPreviewFrameData, int onPreviewFrameDataWeight, int onPreviewFrameDataHeight, int cropLeft, int cropTop, int cropWidth, int cropHeight, byte[] outputData, int[] outputDataWH, int rotation, int unknown);
+    public static native int nativeGrayRotateCropSub(
+            byte[] onPreviewFrameData,
+            int onPreviewFrameDataWeight,
+            int onPreviewFrameDataHeight,
+            int cropLeft,
+            int cropTop,
+            int cropWidth,
+            int cropHeight,
+            byte[] outputData,
+            int[] outputDataWH,
+            int rotation,
+            int unknown
+    );
 
     public static native int nativeTransBytes(int[] prepareGrayData, byte[] outputData, int sizeX, int sizeY);
 
