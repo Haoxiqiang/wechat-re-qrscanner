@@ -5,11 +5,11 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Point
 import android.graphics.Rect
 import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
-import android.media.Image
 import android.os.SystemClock
 import android.util.Log
 import androidx.camera.camera2.interop.Camera2CameraControl
@@ -29,10 +29,11 @@ import com.tencent.qbar.WechatScanner
 import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.nio.ReadOnlyBufferException
 import java.nio.charset.Charset
 import java.util.concurrent.Executors
-import kotlin.experimental.inv
+import kotlin.math.ceil
+import kotlin.math.max
+import kotlin.math.min
 
 
 @ExperimentalGetImage
@@ -100,11 +101,42 @@ object Params {
         }
     }
 
+    suspend fun scanImageFile(
+        path: String,
+        bar: (code: Int, content: List<String>) -> Unit,
+    ) {
+        val options = BitmapFactory.Options()
+        options.inJustDecodeBounds = true
+        BitmapFactory.decodeFile(path, options)
+        val imageWidth: Int = options.outWidth
+        val imageHeight: Int = options.outHeight
+        options.inJustDecodeBounds = false
+        options.inSampleSize = calImageSubsamplingSize(imageWidth, imageHeight)
+        val bitmap =
+            BitmapFactory.decodeFile(path, options)
+        scanBitmap(bitmap, bar)
+    }
+
     suspend fun scanBitmap(
         bitmap: Bitmap,
         bar: (code: Int, content: List<String>) -> Unit,
     ) {
-
+        val qrBitmap = bitmap.preQRBitmap()
+//        val scanResultList: List<QbarNative.QBarResultJNI> =
+//            wechatScanner.onPreviewFrame(
+//                data = bytes,
+//                size = Point(
+//                    width,
+//                    height
+//                ),
+//                crop = Rect(
+//                    0,
+//                    0,
+//                    width,
+//                    height
+//                ),
+//                rotation = rotation
+//            )
     }
 
     fun startScan(
@@ -116,7 +148,6 @@ object Params {
             bar.invoke(NO_PERMISSION, emptyList())
             return
         }
-
         cameraPreview.bindCameraUseCases(
             activity = activity,
             analysisCallback = bar
@@ -174,44 +205,44 @@ object Params {
                         "WeChatScanner start decode image(width:$width height:$height rotation:$rotation)."
                     )
 
-                    // val bytes = ByteArray(image.planes[0].buffer.remaining())
-                    val bytes = YUV_420_888toNV21(image)
-
-                    val scanResultList: List<QbarNative.QBarResultJNI> =
-                        wechatScanner.onPreviewFrame(
-                            data = bytes,
-                            size = Point(
-                                width,
-                                height
-                            ),
-                            crop = Rect(
-                                0,
-                                0,
-                                width,
-                                height
-                            ),
-                            rotation = rotation
-                        )
-                    if (scanResultList.isNotEmpty()) {
-                        scanResultList.forEach { qBarResultJNI: QbarNative.QBarResultJNI ->
-                            Log.d(
-                                "QBarRE",
-                                "onPreviewFrame typeName=${qBarResultJNI.typeName} charset=${qBarResultJNI.charset} data=${
+                    val bytes = imageProxy.nv21ByteArray()
+                    if (bytes != null) {
+                        val scanResultList: List<QbarNative.QBarResultJNI> =
+                            wechatScanner.onPreviewFrame(
+                                data = bytes,
+                                size = Point(
+                                    width,
+                                    height
+                                ),
+                                crop = Rect(
+                                    0,
+                                    0,
+                                    width,
+                                    height
+                                ),
+                                rotation = rotation
+                            )
+                        if (scanResultList.isNotEmpty()) {
+                            scanResultList.forEach { qBarResultJNI: QbarNative.QBarResultJNI ->
+                                Log.d(
+                                    "QBarRE",
+                                    "onPreviewFrame typeName=${qBarResultJNI.typeName} charset=${qBarResultJNI.charset} data=${
+                                        String(
+                                            qBarResultJNI.data,
+                                            Charset.forName(qBarResultJNI.charset)
+                                        )
+                                    }"
+                                )
+                            }
+                            val newResult =
+                                scanResultList.map { qBarResultJNI ->
                                     String(
                                         qBarResultJNI.data,
                                         Charset.forName(qBarResultJNI.charset)
                                     )
-                                }"
-                            )
+                                }
+                            analysisCallback.invoke(1, newResult)
                         }
-                        val newResult =
-                            scanResultList.map { qBarResultJNI ->
-                                String(
-                                    qBarResultJNI.data,
-                                    Charset.forName(qBarResultJNI.charset)
-                                )
-                            }
-                        analysisCallback.invoke(1, newResult)
                     }
 
                     Log.d(
@@ -284,64 +315,42 @@ object Params {
         }
     }
 
-    fun YUV_420_888toNV21(image: Image): ByteArray {
-        val width = image.width
-        val height = image.height
-        val ySize = width * height
-        val uvSize = width * height / 4
-        val nv21 = ByteArray(ySize + uvSize * 2)
-        val yBuffer = image.planes[0].buffer // Y
-        val uBuffer = image.planes[1].buffer // U
-        val vBuffer = image.planes[2].buffer // V
-        var rowStride = image.planes[0].rowStride
-        assert(image.planes[0].pixelStride == 1)
-        var pos = 0
-        if (rowStride == width) { // likely
-            yBuffer[nv21, 0, ySize]
-            pos += ySize
+    fun calImageSubsamplingSize(width: Int, height: Int): Int {
+        val w = width + width % 2
+        val h = height + height % 2
+
+        val longSide = max(w, h)
+        val shortSide = min(w, h)
+        if (longSide == 0 || shortSide == 0) {
+            return -1
+        }
+        val scale = shortSide.toFloat() / longSide.toFloat()
+        if (scale <= 1.0f && scale > 0.5625) {
+            return if (longSide < 1664) {
+                1
+            } else if (longSide < 4990) {
+                2
+            } else if (longSide < 10240) {
+                4
+            } else {
+                8
+            }
+        } else if (scale <= 0.5625f && scale > 0.5f) {
+            return if (longSide < 1280) {
+                1
+            } else {
+                longSide / 1280
+            }
         } else {
-            var yBufferPos = -rowStride.toLong() // not an actual position
-            while (pos < ySize) {
-                yBufferPos += rowStride.toLong()
-                yBuffer.position(yBufferPos.toInt())
-                yBuffer[nv21, pos, width]
-                pos += width
+            return if (longSide < 4990) {
+                1
+            } else if (longSide < 10240) {
+                2
+            } else if (longSide < 20480) {
+                4
+            } else {
+                ceil(longSide.toFloat() / (shortSide * 2)).toInt().coerceAtLeast(8)
             }
         }
-        rowStride = image.planes[2].rowStride
-        val pixelStride = image.planes[2].pixelStride
-        assert(rowStride == image.planes[1].rowStride)
-        assert(pixelStride == image.planes[1].pixelStride)
-        if (pixelStride == 2 && rowStride == width && uBuffer[0] == vBuffer[1]) {
-            // maybe V an U planes overlap as per NV21, which means vBuffer[1] is alias of uBuffer[0]
-            val savePixel = vBuffer[1]
-            try {
-                vBuffer.put(1, savePixel.inv())
-                if (uBuffer[0] == savePixel.inv()) {
-                    vBuffer.put(1, savePixel)
-                    vBuffer.position(0)
-                    uBuffer.position(0)
-                    vBuffer[nv21, ySize, 1]
-                    uBuffer[nv21, ySize + 1, uBuffer.remaining()]
-                    return nv21 // shortcut
-                }
-            } catch (ex: ReadOnlyBufferException) {
-                // unfortunately, we cannot check if vBuffer and uBuffer overlap
-            }
-
-            // unfortunately, the check failed. We must save U and V pixel by pixel
-            vBuffer.put(1, savePixel)
-        }
-
-        // other optimizations could check if (pixelStride == 1) or (pixelStride == 2),
-        // but performance gain would be less significant
-        for (row in 0 until height / 2) {
-            for (col in 0 until width / 2) {
-                val vuPos = col * pixelStride + row * rowStride
-                nv21[pos++] = vBuffer[vuPos]
-                nv21[pos++] = uBuffer[vuPos]
-            }
-        }
-        return nv21
     }
 }

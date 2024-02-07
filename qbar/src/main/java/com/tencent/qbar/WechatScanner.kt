@@ -157,6 +157,14 @@ class WechatScanner {
             QbarNative.QBarResultJNI(),
             QbarNative.QBarResultJNI()
         )
+
+//        QbarNative.GetResults(qBarResultJNIArr, scanImageResult)
+//        Log.d(
+//            "GetResults",
+//            qBarResultJNIArr.map { qBarResultJNI: QbarNative.QBarResultJNI? -> qBarResultJNI?.typeName }
+//                .joinToString()
+//        )
+
         val qBarPointArr: Array<QbarNative.QBarPoint> =
             arrayOf(QbarNative.QBarPoint(), QbarNative.QBarPoint(), QbarNative.QBarPoint())
         val qBarReportMsgArr: Array<QbarNative.QBarReportMsg> = arrayOf(
@@ -172,6 +180,10 @@ class WechatScanner {
         }
 
         return qBarResultJNIArr.filter { qBarResultJNI: QbarNative.QBarResultJNI? -> qBarResultJNI?.typeName?.isNotEmpty() == true }
+    }
+
+    fun onDecodeImageFile() {
+
     }
 
     /**

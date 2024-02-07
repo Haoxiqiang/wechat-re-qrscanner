@@ -1,7 +1,6 @@
 package com.tencent.qbar;
 
 import android.graphics.Bitmap;
-import android.hardware.Camera;
 
 public class QbarNative {
 
@@ -56,7 +55,7 @@ public class QbarNative {
          *
          * @see java.nio.charset.Charset
          */
-        public String charset;
+        public String charset = "";
 
         /**
          * 字符集合的内容，常见格式：UTF-8、ASCII、ISO8859-1
@@ -65,18 +64,18 @@ public class QbarNative {
          * @see String
          * @see java.nio.charset.Charset
          */
-        public byte[] data;
+        public byte[] data = new byte[1024];
 
         /**
          * 未知含义
          */
-        public int typeID;
+        public int typeID = 0;
 
         /**
          * 当前扫出来二维码类型
          * 一般有：CODE_25、CODE_39、CODE_128、QR_CODE、
          */
-        public String typeName;
+        public String typeName = "";
     }
 
     public static native int Encode(byte[] bArr, int[] iArr, String str, int i, int i2, String str2, int i3);
@@ -107,7 +106,6 @@ public class QbarNative {
      * @param rotation                 旋转角度
      * @param unknown                  始终为0 不明含义
      * @return 非0失败
-     * @see Camera.PreviewCallback#onPreviewFrame(byte[], Camera)
      */
     public static native int nativeGrayRotateCropSub(byte[] onPreviewFrameData, int onPreviewFrameDataWeight, int onPreviewFrameDataHeight, int cropLeft, int cropTop, int cropWidth, int cropHeight, byte[] outputData, int[] outputDataWH, int rotation, int unknown);
 
@@ -125,11 +123,12 @@ public class QbarNative {
 
     public static native int GetDetailResults(QBarResultJNI[] qBarResultJNIArr, QBarPoint[] qBarPointArr, QBarReportMsg[] qBarReportMsgArr, int i);
 
-    public native int GetOneResult(byte[] bArr, byte[] bArr2, byte[] bArr3, int[] iArr, int i);
+    public static native int GetOneResult(byte[] bArr, byte[] bArr2, byte[] bArr3, int[] iArr, int i);
 
-    public native int GetResults(QBarResultJNI[] qBarResultJNIArr, int i);
 
-    public native int GetZoomInfo(QBarZoomInfo qBarZoomInfo, int i);
+    public static native int GetResults(QBarResultJNI[] qBarResultJNIArr, int i);
+
+    public static native int GetZoomInfo(QBarZoomInfo qBarZoomInfo, int i);
 
     /**
      * 初始化扫一扫模块
