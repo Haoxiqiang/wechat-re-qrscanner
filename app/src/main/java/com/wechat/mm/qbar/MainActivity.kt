@@ -16,15 +16,14 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var textView: TextView
     private lateinit var cameraPreview: PreviewView
-    var scanCount = 0
+
+    private var lastString = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         textView = findViewById(R.id.textView)
         cameraPreview = findViewById(R.id.cameraPreview)
-
-        scanCount = 0
     }
 
     override fun onPrepareOptionsMenu(menu: Menu?): Boolean {
@@ -45,20 +44,44 @@ class MainActivity : AppCompatActivity() {
         textView.text = Params.wechatScanner.version()
     }
 
-    fun onClickOpen(view: View) {
+    fun onClickOpenCamera(view: View) {
         Params.startScan(
-            this,
-            cameraPreview
-        ) { code: Int, contents: List<String> ->
-            val newData = contents.joinToString()
-            Log.d("WXScanner", "scanCount:${scanCount}code:$code  $newData")
-            scanCount += 1
-            if (newData.isNotEmpty()) {
-                textView.post {
-                    textView.text = newData
+            activity = this,
+            cameraPreview = cameraPreview,
+            qbarCallback = { code: Int, message: String, contents: List<String> ->
+                val newData = contents.joinToString()
+                Log.d("WXScanner", "code:$code  message:$message $newData")
+                if (lastString == newData) {
+                    return@startScan
+                }
+                lastString = newData
+                if (newData.isNotEmpty()) {
+                    textView.post {
+                        textView.text = newData
+                    }
                 }
             }
-        }
+        )
+    }
+
+    fun onClickOpenFile(view: View) {
+        Params.startScan(
+            activity = this,
+            cameraPreview = cameraPreview,
+            qbarCallback = { code: Int, message: String, contents: List<String> ->
+                val newData = contents.joinToString()
+                Log.d("WXScanner", "code:$code  message:$message $newData")
+                if (lastString == newData) {
+                    return@startScan
+                }
+                lastString = newData
+                if (newData.isNotEmpty()) {
+                    textView.post {
+                        textView.text = newData
+                    }
+                }
+            }
+        )
     }
 
     override fun onDestroy() {

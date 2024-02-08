@@ -177,7 +177,7 @@ public class QbarNative {
      * @param qBarId                       被初始化的ID
      * @return 非0失败
      * @see QbarNative#nativeGrayRotateCropSub(byte[], int, int, int, int, int, int, byte[], int[], int, int)
-     * @see GetDetailResults(QBarResultJNI[], QBarPoint[], QBarReportMsg[], int)
+     * @see QbarNative#GetDetailResults(QBarResultJNI[], QBarPoint[], QBarReportMsg[], int) 
      */
     public static native int ScanImage(byte[] onPreviewFrameDataGray, int onPreviewFrameDataGrayWeight, int onPreviewFrameDataGrayHeight, int qBarId);
 

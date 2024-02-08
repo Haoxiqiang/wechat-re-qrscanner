@@ -68,8 +68,7 @@ class WechatScanner {
         qbarAiModelParam.detect_model_bin_path_ = qbarDetectModelPath.absolutePath
         qbarAiModelParam.detect_model_param_path_ = ""
         qbarAiModelParam.superresolution_model_bin_path_ = qbarSrPath.absolutePath
-        qbarAiModelParam.superresolution_model_param_path_ =
-            superResolutionModelParamPath.absolutePath
+        qbarAiModelParam.superresolution_model_param_path_ = superResolutionModelParamPath.absolutePath
 
         id = QbarNative.Init(
             1, true, true, true, true,

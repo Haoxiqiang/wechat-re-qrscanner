@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">WeChatQBarRE</string>
+    <string name="open_camera">Camera</string>
+    <string name="open_file">File</string>
 </resources>

@@ -24,22 +24,25 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="32dp"
-            android:onClick="onClickInit"
-            android:text="初始化" />
+            android:onClick="onClickOpenCamera"
+            android:text="@string/open_camera" />
 
         <androidx.appcompat.widget.AppCompatButton
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="32dp"
-            android:onClick="onClickOpen"
-            android:text="打开相机" />
+            android:onClick="onClickOpenFile"
+            android:text="@string/open_file" />
 
-        <androidx.appcompat.widget.AppCompatTextView
-            android:id="@+id/textView"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center_vertical"
-            android:onClick="onClickReset" />
     </LinearLayout>
 
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/textView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:gravity="start"
+        android:minHeight="64dp"
+        android:textColor="@android:color/white"
+        android:textSize="18sp" />
 </FrameLayout>
