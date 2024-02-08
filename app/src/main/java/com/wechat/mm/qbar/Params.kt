@@ -130,10 +130,11 @@ object Params {
     ) {
         val startTime = SystemClock.elapsedRealtime()
         val preQRBitmap = bitmap.preQRBitmap()
-        val preQRBytes = preQRBitmap.toARGBBytes()
+        val preQRBytes = preQRBitmap.toRGBABytes()
         val width = preQRBitmap.width
         val height = preQRBitmap.height
-        val i420Bytes = LibYuv.convertToI420(preQRBytes, width, height, FourCC.FOURCC_ARGB)
+        // RGBA => ABGR in LibYUV
+        val i420Bytes = LibYuv.convertToI420(preQRBytes, width, height, FourCC.FOURCC_ABGR)
         val bytes =
             LibYuv.convertFromI420(i420Bytes, width, height, FourCC.FOURCC_NV21)
         val scanResultList: List<QbarNative.QBarResultJNI> =

@@ -44,7 +44,7 @@ fun Bitmap.resizeBitmap(maxHeight: Int, maxWidth: Int): Bitmap {
     )
 }
 
-fun Bitmap.toARGBBytes(): ByteArray {
+fun Bitmap.toRGBABytes(): ByteArray {
     val pixels = IntArray(width * height)
     val bytes = ByteArray(pixels.size * 4)
     getPixels(
