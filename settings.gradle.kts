@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "WeChatQBarRE"
 include(":app")
 include(":qbar")
+include(":libyuv")

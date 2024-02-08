@@ -24,6 +24,8 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.king.libyuv.FourCC
+import com.king.libyuv.LibYuv
 import com.tencent.qbar.QbarNative
 import com.tencent.qbar.WechatScanner
 import org.json.JSONObject
@@ -54,6 +56,9 @@ object Params {
     val wechatScanner by lazy {
         val scanner = WechatScanner()
         val context = ContextProvider.get()
+
+        releaseAssets(context)
+
         scanner.init(context)
         scanner.setReader()
         scanner
@@ -70,7 +75,7 @@ object Params {
      * @throws IOException 可能文件权限有问题
      */
     @Throws(IOException::class)
-    fun releaseAssets(context: Context, folder: String = "qbar") {
+    private fun releaseAssets(context: Context, folder: String = "qbar") {
 
         val outputFolder = File(context.filesDir, folder)
         if (!outputFolder.exists()) {
@@ -96,15 +101,16 @@ object Params {
                     if (!parentDir.exists()) {
                         parentDir.mkdirs()
                     }
-                    target.delete()
-                    input.copyTo(target.outputStream())
+                    if (!target.exists()) {
+                        input.copyTo(target.outputStream())
+                    }
                 }
         }
     }
 
-    suspend fun scanImageFile(
+    fun scanImageFile(
         path: String,
-        bar: (code: Int, content: List<String>) -> Unit,
+        qbarCallback: (code: Int, message: String, contents: List<String>) -> Unit,
     ) {
         val options = BitmapFactory.Options()
         options.inJustDecodeBounds = true
@@ -115,17 +121,21 @@ object Params {
         options.inSampleSize = calImageSubsamplingSize(imageWidth, imageHeight)
         val bitmap =
             BitmapFactory.decodeFile(path, options)
-        scanBitmap(bitmap, bar)
+        scanBitmap(bitmap, qbarCallback)
     }
 
-    suspend fun scanBitmap(
+    fun scanBitmap(
         bitmap: Bitmap,
-        bar: (code: Int, content: List<String>) -> Unit,
+        qbarCallback: (code: Int, message: String, contents: List<String>) -> Unit,
     ) {
-        val qrBitmap = bitmap.preQRBitmap()
-        val width = qrBitmap.width
-        val height = qrBitmap.height
-        val bytes = qrBitmap.getNV21()
+        val startTime = SystemClock.elapsedRealtime()
+        val preQRBitmap = bitmap.preQRBitmap()
+        val preQRBytes = preQRBitmap.toARGBBytes()
+        val width = preQRBitmap.width
+        val height = preQRBitmap.height
+        val i420Bytes = LibYuv.convertToI420(preQRBytes, width, height, FourCC.FOURCC_ARGB)
+        val bytes =
+            LibYuv.convertFromI420(i420Bytes, width, height, FourCC.FOURCC_NV21)
         val scanResultList: List<QbarNative.QBarResultJNI> =
             wechatScanner.onPreviewFrame(
                 data = bytes,
@@ -141,27 +151,14 @@ object Params {
                 ),
                 rotation = 0
             )
-        if (scanResultList.isNotEmpty()) {
-            scanResultList.forEach { qBarResultJNI: QbarNative.QBarResultJNI ->
-                Log.d(
-                    "QBarRE",
-                    "onPreviewFrame typeName=${qBarResultJNI.typeName} charset=${qBarResultJNI.charset} data=${
-                        String(
-                            qBarResultJNI.data,
-                            Charset.forName(qBarResultJNI.charset)
-                        )
-                    }"
-                )
-            }
-            val newResult =
-                scanResultList.map { qBarResultJNI ->
-                    String(
-                        qBarResultJNI.data,
-                        Charset.forName(qBarResultJNI.charset)
-                    )
-                }
-            bar.invoke(1, newResult)
-        }
+        val costTime = SystemClock.elapsedRealtime() - startTime
+        notifyResult(qbarCallback, costTime, scanResultList)
+        val resultString = notifyResult(qbarCallback, costTime, scanResultList)
+        Log.d(
+            "QBarRE",
+            "WeChatScanner decode image(width:$width height:$height) " +
+                    "cost: ${costTime}ms result:$resultString"
+        )
     }
 
     fun startScan(
@@ -221,52 +218,44 @@ object Params {
                 if (imageProxy.image != null) {
                     val startTime = SystemClock.elapsedRealtime()
                     val image = imageProxy.image!!
-                    val rotation = imageProxy.imageInfo.rotationDegrees
-                    val width = image.width
-                    val height = image.height
+                    val rotationDegrees = imageProxy.imageInfo.rotationDegrees
 
-                    val bytes = imageProxy.nv21ByteArray()
-                    if (bytes != null) {
-                        val scanResultList: List<QbarNative.QBarResultJNI> =
-                            wechatScanner.onPreviewFrame(
-                                data = bytes,
-                                size = Point(
-                                    width,
-                                    height
-                                ),
-                                crop = Rect(
-                                    0,
-                                    0,
-                                    width,
-                                    height
-                                ),
-                                rotation = rotation
-                            )
-
-                        val resultString = scanResultList.map { qBarResultJNI ->
-                            val json = JSONObject()
-                            json.put("charset", qBarResultJNI.charset)
-                            json.put("typeID", qBarResultJNI.typeID)
-                            json.put("typeName", qBarResultJNI.typeName)
-                            json.put(
-                                "data", String(
-                                    qBarResultJNI.data,
-                                    Charset.forName(qBarResultJNI.charset)
-                                )
-                            )
-                            json.put("costTime", "${SystemClock.elapsedRealtime() - startTime}ms")
-                            json.toString()
-                        }
-                        if (resultString.isNotEmpty()) {
-                            qbarCallback.invoke(1, "success", resultString)
-                        }
-
-                        Log.d(
-                            "QBarRE",
-                            "WeChatScanner decode image(width:$width height:$height rotation:$rotation) " +
-                                    "cost: ${SystemClock.elapsedRealtime() - startTime}ms result:$resultString"
-                        )
+                    val i420Data = LibYuv.imageToI420(imageProxy.image, rotationDegrees)
+                    val width: Int
+                    val height: Int
+                    if (rotationDegrees == 90 || rotationDegrees == 270) {
+                        width = imageProxy.height
+                        height = imageProxy.width
+                    } else {
+                        width = image.width
+                        height = image.height
                     }
+
+                    val bytes =
+                        LibYuv.convertFromI420(i420Data, width, height, FourCC.FOURCC_NV21)
+                    val scanResultList: List<QbarNative.QBarResultJNI> =
+                        wechatScanner.onPreviewFrame(
+                            data = bytes,
+                            size = Point(
+                                width,
+                                height
+                            ),
+                            crop = Rect(
+                                0,
+                                0,
+                                width,
+                                height
+                            ),
+                            rotation = rotationDegrees
+                        )
+
+                    val costTime = SystemClock.elapsedRealtime() - startTime
+                    val resultString = notifyResult(qbarCallback, costTime, scanResultList)
+                    Log.d(
+                        "QBarRE",
+                        "WeChatScanner decode image(width:$width height:$height rotation:$rotationDegrees) " +
+                                "cost: ${costTime}ms result:$resultString"
+                    )
                 }
                 imageProxy.close()
             }
@@ -292,6 +281,31 @@ object Params {
             updateCameraOptions()
             preview.setSurfaceProvider(this.surfaceProvider)
         }, ContextCompat.getMainExecutor(activity))
+    }
+
+    private fun notifyResult(
+        qbarCallback: (code: Int, message: String, contents: List<String>) -> Unit,
+        costTime: Long,
+        scanResultList: List<QbarNative.QBarResultJNI>,
+    ): List<String> {
+        val resultString = scanResultList.map { qBarResultJNI ->
+            val json = JSONObject()
+            json.put("charset", qBarResultJNI.charset)
+            json.put("typeID", qBarResultJNI.typeID)
+            json.put("typeName", qBarResultJNI.typeName)
+            json.put(
+                "data", String(
+                    qBarResultJNI.data,
+                    Charset.forName(qBarResultJNI.charset)
+                )
+            )
+            json.put("costTime", "${costTime}ms")
+            json.toString()
+        }
+        if (resultString.isNotEmpty()) {
+            qbarCallback.invoke(1, "success", resultString)
+        }
+        return resultString
     }
 
     @SuppressLint("UnsafeOptInUsageError")
