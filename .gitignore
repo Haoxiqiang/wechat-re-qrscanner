@@ -9,9 +9,9 @@
 .externalNativeBuild
 .cxx
 local.properties
-
+build
 /bin/
 /anroid/.idea
 /anroid/.gradle
-build
+/ScanQR.jar
 /ScanQR/README.md

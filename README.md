@@ -11,4 +11,5 @@
 
 ### Dev
 
+* Must be `root` or manaully in adb shell in your app which can get `root` permission.
 * Install `termux` app from the Google Play for test app easier or use any app as the `/data/data/**` executeable dir. Don't chnage all path `/data/data/com.termux`
