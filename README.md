@@ -8,3 +8,7 @@
 ![WXACode fa3d686a](https://github.com/Haoxiqiang/wechat-re-qrscanner/assets/3881604/9e7ddf21-9193-43c5-b64b-92d740d6bd8b)
 
 ![image](https://github.com/Haoxiqiang/wechat-re-qrscanner/assets/3881604/751153f8-3cd7-450e-8dd0-801ed8a596a0)
+
+### Dev
+
+* Install `termux` app from the Google Play for test app easier or use any app as the `/data/data/**` executeable dir. Don't chnage all path `/data/data/com.termux`

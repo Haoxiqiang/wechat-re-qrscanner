@@ -1,6 +1,0 @@
-/home/haoxiqiang/Android/Sdk/cmake/3.22.1/bin/ninja \
-  -C \
-  /home/haoxiqiang/workspace/WeChatQBarRE/libyuv/.cxx/Debug/4o6f4mu4/arm64-v8a \
-  libyuv \
-  yuv_shared \
-  yuvconvert

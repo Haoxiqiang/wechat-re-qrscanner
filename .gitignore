@@ -2,10 +2,16 @@
 .gradle
 /local.properties
 /.idea/
+/.gradle/
 .DS_Store
 /build
 /captures
 .externalNativeBuild
 .cxx
 local.properties
-/libyuv/build/
+
+/bin/
+/anroid/.idea
+/anroid/.gradle
+build
+/ScanQR/README.md
