@@ -11,7 +11,7 @@
 local.properties
 build
 /bin/
-/anroid/.idea
-/anroid/.gradle
+/android/.idea/
+/android/.gradle
 /ScanQR.jar
 /ScanQR/README.md
