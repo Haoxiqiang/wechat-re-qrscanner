@@ -183,7 +183,7 @@ public class QbarNative {
 
     /**
      * 设置一个扫描器
-     *
+
      * @param scanMode     扫描模式
      *                     暂时不知各项含义
      *                     请固定：2，1
